@@ -1,197 +1,168 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blue Jay</title>
-    <link rel="stylesheet" href="../static/styles.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Blue Jay</title>
+
+  <link rel="stylesheet" href="../static/styles.css">
+
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    rel="stylesheet"
+  >
 </head>
+
 <body>
-    <div class="container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2><i class="fas fa-feather-alt"></i> Blue Jay</h2>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <ul>
-                    <li>
-                        <a href="#" class="nav-link" data-section="profile">
-                            <i class="fas fa-user"></i>
-                            <span>Mi Perfil</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="nav-link" data-section="search">
-                            <i class="fas fa-search"></i>
-                            <span>Buscar</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="nav-link" data-section="settings">
-                            <i class="fas fa-cog"></i>
-                            <span>Configuración</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="nav-link logout" data-section="logout">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span>Salir</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+  <div class="container">
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="content-header">
-                <h1>Bienvenido a Blue Jay</h1>
-                <p>Explora el contenido y disfruta de la experiencia</p>
-            </header>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>
+          <i class="fas fa-feather-alt"></i>
+          Blue Jay
+        </h2>
+      </div>
 
-            <section class="posts-list">
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Lorem Ipsum 1</h3>
-                        <span class="card-date">Hoy</span>
-                    </div>
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
+      <nav class="sidebar-nav">
+        <ul>
+          <li>
+            <a
+              href="#inicio"
+              class="nav-link active"
+              data-section="inicio"
+            >
+              <i class="fas fa-home"></i>
+              <span>Inicio</span>
+            </a>
+          </li>
 
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Dolor Sit Amet</h3>
-                        <span class="card-date">Ayer</span>
-                    </div>
-                    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
+          <li>
+            <a
+              href="#profile"
+              class="nav-link"
+              data-section="profile"
+            >
+              <i class="fas fa-user"></i>
+              <span>Mi Perfil</span>
+            </a>
+          </li>
 
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Consectetur Adipiscing</h3>
-                        <span class="card-date">2 días</span>
-                    </div>
-                    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
+          <li>
+            <a
+              href="#search"
+              class="nav-link"
+              data-section="search"
+            >
+              <i class="fas fa-search"></i>
+              <span>Buscar</span>
+            </a>
+          </li>
 
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Tempor Incididunt</h3>
-                        <span class="card-date">3 días</span>
-                    </div>
-                    <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
+          <li>
+            <a
+              href="#requests"
+              class="nav-link"
+              data-section="requests"
+            >
+              <i class="fas fa-user-clock"></i>
+              <span>Solicitudes</span>
+            </a>
+          </li>
 
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Magna Aliqua</h3>
-                        <span class="card-date">1 semana</span>
-                    </div>
-                    <p>Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
+          <li>
+            <a
+              href="#settings"
+              class="nav-link"
+              data-section="settings"
+            >
+              <i class="fas fa-cog"></i>
+              <span>Configuración</span>
+            </a>
+          </li>
 
-                <article class="card">
-                    <div class="card-header">
-                        <h3>Exercitation Ullamco</h3>
-                        <span class="card-date">1 semana</span>
-                    </div>
-                    <p>Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae.</p>
-                    <div class="card-actions">
-                        <button class="action-btn like-btn" data-action="like">
-                            <i class="far fa-heart"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn comment-btn" data-action="comment">
-                            <i class="far fa-comment"></i>
-                            <span class="count">0</span>
-                        </button>
-                        <button class="action-btn repost-btn" data-action="repost">
-                            <i class="fas fa-retweet"></i>
-                            <span class="count">0</span>
-                        </button>
-                    </div>
-                </article>
-            </section>
-        </main>
-    </div>
+          <li>
+            <a
+              href="#logout"
+              class="nav-link logout"
+              data-section="logout"
+            >
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Salir</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </aside>
 
-    <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobileToggle">
-        <i class="fas fa-bars"></i>
-    </button>
+    <main class="main-content">
 
-    <script src="../static/script.js"></script>
+      <header class="content-header">
+        <h1 id="page-title">
+          Bienvenido a Blue Jay
+        </h1>
+
+        <p id="page-subtitle">
+          Explora el contenido y disfruta de la experiencia
+        </p>
+      </header>
+
+      <section id="composer" class="card composer">
+        <form id="post-form">
+
+          <label for="post-content">
+            ¿Qué está pasando?
+          </label>
+
+          <textarea
+            id="post-content"
+            rows="3"
+            maxlength="500"
+            placeholder="Comparte algo con tu comunidad..."
+            required
+          ></textarea>
+
+          <div class="composer-footer">
+            <small id="char-count">0/500</small>
+
+            <button
+              class="primary-btn"
+              type="submit"
+            >
+              <i class="fas fa-feather-alt"></i>
+              Publicar
+            </button>
+          </div>
+
+        </form>
+      </section>
+
+      <section
+        id="view-content"
+        aria-live="polite"
+      ></section>
+
+    </main>
+  </div>
+
+  <button
+    class="mobile-menu-toggle"
+    id="mobileToggle"
+    aria-label="Abrir menú"
+  >
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div
+    id="notifications"
+    class="notifications"
+    aria-live="polite"
+  ></div>
+
+  <script
+    type="module"
+    src="../static/script.js"
+  ></script>
 </body>
+</html>
