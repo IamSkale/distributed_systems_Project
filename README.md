@@ -31,5 +31,3 @@ uv sync             # crea .venv e instala las dependencias
 uv run pytest       # corre las pruebas
 uv run ruff check   # lint
 ```
-
-Plan de la primera entrega (versión con Ray): `plan_entrega_1.md`.
