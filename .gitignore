@@ -1,0 +1,14 @@
+plan.md
+Screenshot_20261016_175927.png
+plan_entrega_1.md
+/confs
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+
+# Datos locales de los servidores (persistencia opcional)
+data/

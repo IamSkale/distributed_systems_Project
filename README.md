@@ -21,3 +21,15 @@ Construir un servicio de micropublicaciones con:
 - [Mastodon](https://docs.joinmastodon.org/): implementación desplegada de micropublicaciones federadas sobre ActivityPub.
 - Twitter/X: comparación funcional histórica (sin reutilizar su marca).
 
+
+## Desarrollo
+
+Requisitos: [uv](https://docs.astral.sh/uv/). `uv` descarga Python 3.12 si hace falta.
+
+```bash
+uv sync             # crea .venv e instala las dependencias
+uv run pytest       # corre las pruebas
+uv run ruff check   # lint
+```
+
+Plan de la primera entrega (versión con Ray): `plan_entrega_1.md`.
