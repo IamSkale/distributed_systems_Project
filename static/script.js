@@ -1,172 +1,616 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sidebar = document.querySelector('.sidebar');
-    const mobileToggle = document.getElementById('mobileToggle');
-    const cards = document.querySelectorAll('.card');
-    const actionButtons = document.querySelectorAll('.action-btn');
+import { api } from "./api.js";
 
-    // ----- Menú móvil -----
-    mobileToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('open');
-        const icon = this.querySelector('i');
-        icon.className = sidebar.classList.contains('open')
-            ? 'fas fa-times'
-            : 'fas fa-bars';
-    });
+const $ = (selector) =>
+  document.querySelector(selector);
 
-    document.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-            if (!sidebar.contains(e.target) && !mobileToggle.contains(e.target)) {
-                sidebar.classList.remove('open');
-                mobileToggle.querySelector('i').className = 'fas fa-bars';
-            }
+const view = $("#view-content");
+const composer = $("#composer");
+const form = $("#post-form");
+const textarea = $("#post-content");
+const sidebar = $("#sidebar");
+const mobileToggle = $("#mobileToggle");
+
+let me;
+let activeSection = "inicio";
+
+const escapeHTML = (value = "") =>
+  String(value).replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+
+function notify(message, type = "info") {
+  const item = document.createElement("div");
+
+  item.className = `notification notification-${type}`;
+
+  item.innerHTML = `
+    <i class="fas ${
+      type === "success"
+        ? "fa-check-circle"
+        : "fa-info-circle"
+    }"></i>
+    <span>${escapeHTML(message)}</span>
+  `;
+
+  $("#notifications").append(item);
+
+  setTimeout(() => item.remove(), 3200);
+}
+
+function setHeader(title, subtitle) {
+  $("#page-title").textContent = title;
+  $("#page-subtitle").textContent = subtitle;
+}
+
+function postCard(post) {
+  const ownPost = post.autorId === me.id;
+
+  return `
+    <article
+      class="card post-card fade-in"
+      data-post-id="${escapeHTML(post.id)}"
+    >
+      <div class="card-header">
+        <div class="author">
+          <div class="avatar">
+            ${escapeHTML(
+              (post.autor?.nombre || "?")
+                .charAt(0)
+                .toUpperCase()
+            )}
+          </div>
+
+          <div>
+            <h3>
+              ${escapeHTML(post.autor?.nombre || "Usuario")}
+            </h3>
+
+            <span class="handle">
+              @${escapeHTML(post.autor?.usuario || "usuario")}
+            </span>
+          </div>
+        </div>
+
+        <span class="card-date">
+          ${escapeHTML(post.fecha || "")}
+        </span>
+      </div>
+
+      <p class="post-content">
+        ${escapeHTML(post.contenido)}
+      </p>
+
+      <div class="card-actions">
+        <button
+          class="action-btn like-btn ${
+            post.liked ? "active" : ""
+          }"
+          data-action="like"
+          aria-label="Me gusta"
+        >
+          <i class="${
+            post.liked ? "fas" : "far"
+          } fa-heart"></i>
+
+          <span class="count">${post.likes}</span>
+        </button>
+
+        <button
+          class="action-btn comment-btn"
+          data-action="comment"
+          aria-label="Comentarios"
+        >
+          <i class="far fa-comment"></i>
+          <span class="count">${post.comentarios}</span>
+        </button>
+
+        <button
+          class="action-btn repost-btn ${
+            post.republicado ? "active" : ""
+          }"
+          data-action="repost"
+          aria-label="Republicar"
+        >
+          <i class="fas fa-retweet"></i>
+          <span class="count">${post.republicaciones}</span>
+        </button>
+
+        ${
+          ownPost
+            ? `
+              <button
+                class="action-btn delete-btn"
+                data-action="delete"
+              >
+                <i class="fas fa-trash"></i>
+                <span>Eliminar</span>
+              </button>
+            `
+            : ""
         }
+      </div>
+    </article>
+  `;
+}
+
+async function renderFeed() {
+  composer.hidden = false;
+
+  setHeader(
+    "Bienvenido a Blue Jay",
+    "Explora el contenido y disfruta de la experiencia"
+  );
+
+  const posts = await api.linea_inicio();
+
+  view.innerHTML = `
+    <section class="posts-list">
+      ${
+        posts.length
+          ? posts.map(postCard).join("")
+          : `
+            <p class="empty-state">
+              Todavía no hay publicaciones.
+              ¡Sé el primero en compartir algo!
+            </p>
+          `
+      }
+    </section>
+  `;
+}
+
+async function renderProfile() {
+  composer.hidden = true;
+
+  setHeader(
+    "Mi Perfil",
+    "Tu espacio personal en Blue Jay"
+  );
+
+  const [user, posts] = await Promise.all([
+    api.usuario_actual(),
+    api.linea_perfil(me.id)
+  ]);
+
+  me = user;
+
+  view.innerHTML = `
+    <section class="card profile-card">
+      <div class="profile-avatar">
+        ${escapeHTML(me.nombre.charAt(0).toUpperCase())}
+      </div>
+
+      <h2>${escapeHTML(me.nombre)}</h2>
+
+      <p class="handle">
+        @${escapeHTML(me.usuario)}
+      </p>
+
+      <p>
+        ${escapeHTML(
+          me.bio || "Aún no has añadido una descripción."
+        )}
+      </p>
+
+      <button class="primary-btn" id="edit-profile">
+        <i class="fas fa-pen"></i>
+        Editar perfil
+      </button>
+    </section>
+
+    <h2 class="section-heading">
+      Mis publicaciones
+    </h2>
+
+    <section class="posts-list">
+      ${
+        posts.length
+          ? posts.map(postCard).join("")
+          : `
+            <p class="empty-state">
+              Aún no has publicado nada.
+            </p>
+          `
+      }
+    </section>
+  `;
+
+  $("#edit-profile").addEventListener(
+    "click",
+    editProfile
+  );
+}
+
+async function editProfile() {
+  const name = prompt(
+    "¿Cómo quieres que aparezca tu nombre?",
+    me.nombre
+  );
+
+  if (name === null) return;
+
+  const bio = prompt(
+    "Escribe una breve descripción:",
+    me.bio || ""
+  );
+
+  if (bio === null) return;
+
+  try {
+    me = await api.actualizar_perfil({
+      nombre: name,
+      bio
     });
 
-    // ----- Navegación del sidebar -----
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
+    notify("Perfil actualizado.", "success");
 
-            if (this.getAttribute('data-section') === 'logout') {
-                showLogoutConfirmation();
-            } else {
-                navLinks.forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-                handleNavigation(this.getAttribute('data-section'));
-            }
+    await renderProfile();
 
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('open');
-                mobileToggle.querySelector('i').className = 'fas fa-bars';
-            }
-        });
-    });
+  } catch (error) {
+    notify(error.message);
+  }
+}
 
-    function handleNavigation(section) {
-        const messages = {
-            profile: 'Navegando a Mi Perfil',
-            search: 'Abriendo búsqueda',
-            settings: 'Abriendo configuración'
-        };
-        if (messages[section]) showNotification(messages[section], 'info');
-    }
+async function renderSearch() {
+  composer.hidden = true;
 
-    // ----- Animación de entrada -----
-    cards.forEach((card, index) => {
-        card.style.animationDelay = `${index * 0.08}s`;
-        card.classList.add('fade-in');
-    });
+  setHeader(
+    "Buscar personas",
+    "Encuentra a otras personas y conecta con ellas"
+  );
 
-    // ----- Botones Like / Comment / Repost -----
-    actionButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const action = this.getAttribute('data-action');
-            const countEl = this.querySelector('.count');
-            const icon = this.querySelector('i');
-            let count = parseInt(countEl.textContent, 10);
+  view.innerHTML = `
+    <section class="card search-card">
+      <label for="search-input">
+        Nombre o usuario
+      </label>
 
-            this.classList.remove('pop');
-            void this.offsetWidth;
-            this.classList.add('pop');
+      <input
+        id="search-input"
+        type="search"
+        placeholder="Ej. María o @maria"
+      >
 
-            switch (action) {
-                case 'like':
-                    if (this.classList.contains('active')) {
-                        this.classList.remove('active');
-                        icon.className = 'far fa-heart';
-                        count = Math.max(0, count - 1);
-                    } else {
-                        this.classList.add('active');
-                        icon.className = 'fas fa-heart';
-                        count++;
-                        showNotification('¡Te gustó esta publicación!', 'success');
-                    }
-                    break;
+      <div
+        id="search-results"
+        class="people-list"
+      >
+        <p class="muted">
+          Escribe para buscar personas.
+        </p>
+      </div>
+    </section>
+  `;
 
-                case 'comment':
-                    this.classList.toggle('active');
-                    showNotification('Abriendo comentarios...', 'info');
-                    return;
+  const input = $("#search-input");
 
-                case 'repost':
-                    if (this.classList.contains('active')) {
-                        this.classList.remove('active');
-                        count = Math.max(0, count - 1);
-                    } else {
-                        this.classList.add('active');
-                        count++;
-                        showNotification('¡Publicación reposteada!', 'success');
-                    }
-                    break;
-            }
+  input.addEventListener("input", async () => {
+    const users = await api.buscar(input.value);
 
-            countEl.textContent = count;
-        });
-    });
-
-    // ----- Notificaciones (estilo blue jay) -----
-    function showNotification(message, type = 'info') {
-        const existing = document.querySelector('.notification');
-        if (existing) existing.remove();
-
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.innerHTML = `
-            <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i>
-            <span>${message}</span>
+    $("#search-results").innerHTML =
+      users.length
+        ? users.map(userCard).join("")
+        : `
+          <p class="muted">
+            No se encontraron personas.
+          </p>
         `;
+  });
+}
 
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: type === 'success' ? '#1565c0' : '#0a0a0a',
-            color: 'white',
-            padding: '1rem 1.5rem',
-            borderRadius: '10px',
-            border: '2px solid #2196f3',
-            boxShadow: '0 5px 20px rgba(0,0,0,0.4)',
-            zIndex: '9999',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.9rem',
-            fontWeight: '600',
-            transform: 'translateX(400px)',
-            transition: 'transform 0.3s ease'
-        });
+function userCard(user) {
+  return `
+    <div class="person-row">
+      <div class="avatar">
+        ${escapeHTML(user.nombre.charAt(0).toUpperCase())}
+      </div>
 
-        document.body.appendChild(notification);
-        setTimeout(() => notification.style.transform = 'translateX(0)', 100);
-        setTimeout(() => {
-            notification.style.transform = 'translateX(400px)';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
+      <div class="person-info">
+        <strong>${escapeHTML(user.nombre)}</strong>
+        <span>@${escapeHTML(user.usuario)}</span>
+      </div>
+
+      <button
+        class="follow-btn ${
+          user.siguiendo ? "following" : ""
+        }"
+        data-follow="${escapeHTML(user.id)}"
+      >
+        ${user.siguiendo ? "Siguiendo" : "Seguir"}
+      </button>
+    </div>
+  `;
+}
+
+async function renderRequests() {
+  composer.hidden = true;
+
+  setHeader(
+    "Solicitudes",
+    "Gestiona las solicitudes de conexión"
+  );
+
+  const requests = await api.solicitudes_pendientes();
+
+  view.innerHTML = `
+    <section class="card">
+      ${
+        requests.length
+          ? `
+            <div class="people-list">
+              ${requests.map(r => `
+                <div class="person-row">
+                  <div class="avatar">
+                    ${escapeHTML(
+                      r.usuario.nombre.charAt(0).toUpperCase()
+                    )}
+                  </div>
+
+                  <div class="person-info">
+                    <strong>
+                      ${escapeHTML(r.usuario.nombre)}
+                    </strong>
+
+                    <span>
+                      @${escapeHTML(r.usuario.usuario)}
+                    </span>
+                  </div>
+
+                  <button
+                    class="primary-btn accept-btn"
+                    data-accept="${escapeHTML(r.id)}"
+                  >
+                    <i class="fas fa-check"></i>
+                    Aceptar
+                  </button>
+                </div>
+              `).join("")}
+            </div>
+          `
+          : `
+            <p class="empty-state">
+              No tienes solicitudes pendientes.
+            </p>
+          `
+      }
+    </section>
+  `;
+}
+
+function renderSettings() {
+  composer.hidden = true;
+
+  setHeader(
+    "Configuración",
+    "Preferencias de tu cuenta"
+  );
+
+  view.innerHTML = `
+    <section class="card settings-card">
+      <h2>Cuenta</h2>
+
+      <p>
+        Sesión iniciada como
+        <strong>@${escapeHTML(me.usuario)}</strong>.
+      </p>
+
+      <button
+        class="action-btn"
+        id="logout-button"
+      >
+        <i class="fas fa-sign-out-alt"></i>
+        Cerrar sesión
+      </button>
+    </section>
+  `;
+
+  $("#logout-button").addEventListener("click", () => {
+    if (confirm("¿Estás seguro que quieres salir?")) {
+      notify(
+        "Sesión cerrada (modo de demostración).",
+        "success"
+      );
+    }
+  });
+}
+
+async function navigate(section) {
+  activeSection = section;
+
+  document.querySelectorAll(".nav-link").forEach(link => {
+    link.classList.toggle(
+      "active",
+      link.dataset.section === section
+    );
+  });
+
+  sidebar.classList.remove("open");
+
+  mobileToggle.querySelector("i").className =
+    "fas fa-bars";
+
+  try {
+    if (section === "inicio") {
+      await renderFeed();
+
+    } else if (section === "profile") {
+      await renderProfile();
+
+    } else if (section === "search") {
+      await renderSearch();
+
+    } else if (section === "requests") {
+      await renderRequests();
+
+    } else if (section === "settings") {
+      renderSettings();
+
+    } else if (section === "logout") {
+      if (confirm("¿Estás seguro que quieres salir?")) {
+        notify(
+          "Sesión cerrada (modo de demostración).",
+          "success"
+        );
+      }
+
+      await renderFeed();
     }
 
-    // ----- Logout -----
-    function showLogoutConfirmation() {
-        if (confirm('¿Estás seguro que quieres salir?')) {
-            showNotification('Sesión cerrada exitosamente', 'success');
-        }
-    }
+  } catch (error) {
+    notify(error.message || "Ocurrió un error.");
+  }
+}
 
-    // ----- Reset al redimensionar -----
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            sidebar.classList.remove('open');
-            mobileToggle.querySelector('i').className = 'fas fa-bars';
-        }
-    });
+// Crear una publicación.
+form.addEventListener("submit", async event => {
+  event.preventDefault();
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && window.innerWidth <= 768) {
-            sidebar.classList.remove('open');
-            mobileToggle.querySelector('i').className = 'fas fa-bars';
-        }
-    });
+  try {
+    await api.publicar(textarea.value);
 
-    console.log('Aplicación web inicializada — tema Blue Jay');
-    showNotification('¡Bienvenido a Blue Jay!', 'success');
+    textarea.value = "";
+
+    $("#char-count").textContent = "0/500";
+
+    notify("¡Publicación creada!", "success");
+
+    await renderFeed();
+
+  } catch (error) {
+    notify(error.message);
+  }
 });
+
+// Contador de caracteres.
+textarea.addEventListener("input", () => {
+  $("#char-count").textContent =
+    `${textarea.value.length}/500`;
+});
+
+// Acciones de publicaciones, navegación y usuarios.
+document.addEventListener("click", async event => {
+
+  const nav = event.target.closest(".nav-link");
+
+  if (nav) {
+    event.preventDefault();
+    navigate(nav.dataset.section);
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-action]");
+
+  if (actionButton) {
+    const card = actionButton.closest("[data-post-id]");
+    const id = card?.dataset.postId;
+
+    try {
+      if (actionButton.dataset.action === "like") {
+        await api.dar_me_gusta(id);
+      }
+
+      if (actionButton.dataset.action === "repost") {
+        await api.republicar(id);
+      }
+
+      if (actionButton.dataset.action === "delete") {
+        if (!confirm("¿Eliminar esta publicación?")) {
+          return;
+        }
+
+        await api.eliminar(id);
+
+        notify("Publicación eliminada.", "success");
+      }
+
+      if (actionButton.dataset.action === "comment") {
+        notify(
+          "Los comentarios estarán disponibles al conectar el backend."
+        );
+        return;
+      }
+
+      if (activeSection === "profile") {
+        await renderProfile();
+      } else {
+        await renderFeed();
+      }
+
+    } catch (error) {
+      notify(error.message);
+    }
+
+    return;
+  }
+
+  const follow = event.target.closest("[data-follow]");
+
+  if (follow) {
+    try {
+      const user = await api.seguir(
+        follow.dataset.follow
+      );
+
+      follow.textContent =
+        user.siguiendo ? "Siguiendo" : "Seguir";
+
+      follow.classList.toggle(
+        "following",
+        user.siguiendo
+      );
+
+    } catch (error) {
+      notify(error.message);
+    }
+
+    return;
+  }
+
+  const accept = event.target.closest("[data-accept]");
+
+  if (accept) {
+    try {
+      await api.aceptar(accept.dataset.accept);
+
+      notify("Solicitud aceptada.", "success");
+
+      await renderRequests();
+
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+});
+
+// Menú lateral en dispositivos móviles.
+mobileToggle.addEventListener("click", () => {
+  sidebar.classList.toggle("open");
+
+  mobileToggle.querySelector("i").className =
+    sidebar.classList.contains("open")
+      ? "fas fa-times"
+      : "fas fa-bars";
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 768) {
+    sidebar.classList.remove("open");
+  }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    sidebar.classList.remove("open");
+  }
+});
+
+// Inicialización.
+me = await api.usuario_actual();
+
+await renderFeed();
+
+notify("¡Bienvenido a Blue Jay!", "success");
