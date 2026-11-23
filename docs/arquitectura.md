@@ -194,7 +194,7 @@ Reglas del contrato (Conf. 4):
 | `ServidorActor` → su `EntregadorActor` | Asíncrona, sin esperar (*fire-and-forget*) | `encolar` no bloquea la operación del usuario. |
 | `EntregadorActor` → `inbox` remoto | Asíncrona + persistente (en la cola) | *At-least-once* con reintentos; FIFO por destino; *dead letter* tras N intentos (D6). |
 | `inbox` (receptor) | — | Deduplicación por ID e idempotencia: efecto *exactly-once* (D7). |
-| `obtener_objeto` | Síncrona con *timeout* | Petición–respuesta puntual (*pull*, Conf. 5) para resolver dependencias (D12). |
+| `obtener_objeto` | Síncrona con *timeout* | Petición–respuesta puntual (*pull*, Conf. 5) para resolver dependencias (D12). Solo el origen sirve sus publicaciones. Responde el `Note`, un `Tombstone` si se eliminó (como el `410 Gone` de ActivityPub) o nada si no existe o el servidor que la pide no puede verla. |
 
 **Llamar a un método de un actor de Ray es un RPC hacia un objeto remoto** (Conf. 4). No se puede tratar como una llamada local:
 - Un *timeout* no dice si el destino procesó la actividad.
@@ -278,7 +278,7 @@ classDiagram
 | `Seguimiento` | Relación dirigida A → B, `pending` o `accepted`, con el ID del `Follow` | Ambos servidores guardan su lado |
 | `Tombstone` | Marca de una publicación eliminada (D13) | — |
 
-**Estado de cada servidor** (en `ServidorBlueJay`, todavía por implementar):
+**Estado de cada servidor** (en `ServidorBlueJay`, `bluejay/dominio/servidor.py`):
 
 | Estructura | Uso |
 |---|---|

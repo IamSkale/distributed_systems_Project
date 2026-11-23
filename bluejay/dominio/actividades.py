@@ -23,8 +23,10 @@ from enum import StrEnum
 from typing import Any
 
 from bluejay.dominio.modelos import (
+    ActorRemoto,
     Publicacion,
     Republicacion,
+    Usuario,
     Visibilidad,
     dominio_de,
     handle_desde_uri,
@@ -49,6 +51,8 @@ class Tipo(StrEnum):
 
 
 NOTE = "Note"
+PERSON = "Person"
+TOMBSTONE = "Tombstone"
 TIPOS_DESHACIBLES = {Tipo.FOLLOW, Tipo.ANNOUNCE}
 
 
@@ -90,6 +94,25 @@ def note(publicacion: Publicacion) -> dict[str, str]:
         "content": publicacion.contenido,
         "visibility": str(publicacion.visibilidad),
         "published": fecha_a_texto(publicacion.publicada),
+    }
+
+
+def tombstone(uri_publicacion: str) -> dict[str, str]:
+    """Respuesta de `obtener_objeto` para una publicación eliminada (D13).
+
+    Equivale al `410 Gone` de ActivityPub: quien la pide sabe que no debe seguir esperando.
+    """
+    return {"id": uri_publicacion, "type": TOMBSTONE}
+
+
+def persona(usuario: Usuario) -> dict[str, Any]:
+    """Objeto `Person` de un usuario local: la respuesta de `obtener_actor`."""
+    return {
+        "id": usuario.uri,
+        "type": PERSON,
+        "preferredUsername": usuario.username,
+        "name": usuario.nombre,
+        "manuallyApprovesFollowers": usuario.protegida,  # cuenta protegida
     }
 
 
@@ -236,6 +259,33 @@ def validar_note(objeto: Any, dominio_origen: str) -> dict[str, str]:
     }
 
 
+def validar_objeto(objeto: Any, dominio_origen: str) -> dict[str, str]:
+    """Valida la respuesta de `obtener_objeto`: un `Note` o un `Tombstone` (D12, D13)."""
+    if isinstance(objeto, dict) and objeto.get("type") == TOMBSTONE:
+        uri = _uri(objeto, "id")
+        _exigir_mismo_dominio(uri, dominio_origen, "La publicación")
+        return tombstone(uri)
+    return validar_note(objeto, dominio_origen)
+
+
+def validar_persona(objeto: Any, dominio_origen: str) -> dict[str, Any]:
+    """Valida la respuesta de `obtener_actor`."""
+    if not isinstance(objeto, dict) or objeto.get("type") != PERSON:
+        raise ActividadInvalida("Se esperaba un objeto de tipo 'Person'")
+    uri = _uri_actor(objeto, "id")
+    _exigir_mismo_dominio(uri, dominio_origen, "El actor")
+    nombre = objeto.get("name")
+    if not isinstance(nombre, str):
+        raise ActividadInvalida("El campo 'name' debe ser texto")
+    return {
+        "id": uri,
+        "type": PERSON,
+        "preferredUsername": handle_desde_uri(uri).split("@")[1],
+        "name": nombre,
+        "manuallyApprovesFollowers": bool(objeto.get("manuallyApprovesFollowers", False)),
+    }
+
+
 def _validar_create(actividad: Actividad, base: Actividad) -> Actividad:
     objeto = validar_note(_objeto_dict(actividad), dominio_de(base["actor"]))
     if objeto["attributedTo"] != base["actor"]:
@@ -364,4 +414,13 @@ def republicacion_desde_announce(actividad: Actividad) -> Republicacion:
         actor=actividad["actor"],
         publicacion=actividad["object"],
         publicada=texto_a_fecha(actividad["published"]),
+    )
+
+
+def actor_remoto_desde_persona(objeto: dict[str, Any]) -> ActorRemoto:
+    """`Person` ya validado -> `ActorRemoto` (copia en caché; `obtenido` es ahora)."""
+    return ActorRemoto(
+        uri=objeto["id"],
+        nombre=objeto["name"],
+        protegida=objeto["manuallyApprovesFollowers"],
     )

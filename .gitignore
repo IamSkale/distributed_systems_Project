@@ -1,7 +1,7 @@
 plan.md
 Screenshot_20261016_175927.png
 plan_entrega_1.md
-/confs
+confs/
 # Python
 .venv/
 __pycache__/
@@ -9,6 +9,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+tests/
 
 # Datos locales de los servidores (persistencia opcional)
 data/
