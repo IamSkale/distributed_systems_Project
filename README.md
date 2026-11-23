@@ -31,3 +31,11 @@ uv sync             # crea .venv e instala las dependencias
 uv run pytest       # corre las pruebas
 uv run ruff check   # lint
 ```
+
+### API web y frontend
+
+```bash
+uv run python -m bluejay.web    # http://127.0.0.1:8000 (frontend en /, documentación interactiva en /docs)
+```
+
+Arranca con datos de ejemplo en `alpha.local`, `beta.local` y `gamma.local`. El contrato de las rutas está en [docs/api.md](docs/api.md).

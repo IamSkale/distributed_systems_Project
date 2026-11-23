@@ -450,6 +450,23 @@ class ServidorBlueJay:
             "relacion": str(relacion.estado) if relacion else None,
         }
 
+    def usuarios(self, visto_por: str | None = None) -> list[dict[str, Any]]:
+        """Perfiles de los usuarios de este servidor, por orden de registro."""
+        ordenados = sorted(self._usuarios.values(), key=lambda u: u.creado)
+        return [self.perfil(u.handle, visto_por) for u in ordenados]
+
+    def nombres(self, uris: list[str]) -> dict[str, str | None]:
+        """Nombre visible de cada actor: el local, el de la caché, o `None` si no se conoce.
+
+        Una sola llamada para toda una línea de tiempo (en Ray, un solo viaje al actor).
+        """
+        resultado: dict[str, str | None] = {}
+        for uri in uris:
+            local = self._usuario_de_uri(uri)
+            remoto = self._actores_remotos.get(uri)
+            resultado[uri] = local.nombre if local else (remoto.nombre if remoto else None)
+        return resultado
+
     # --- Federación: actividades recibidas -----------------------------------------
 
     def procesar(self, actividad: Any, dominio_remitente: str) -> list[Entrega]:
