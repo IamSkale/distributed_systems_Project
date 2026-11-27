@@ -12,11 +12,19 @@ frontend; la semántica de fallos completa (reintentos, colas acotadas) llega co
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
+
+from ray.actor import ActorHandle
+from ray.exceptions import RayActorError
 
 from bluejay.dominio.actividades import ActividadInvalida
 from bluejay.dominio.modelos import dominio_de
 from bluejay.dominio.servidor import Resultado
+from bluejay.ray_app.config import ConfigRay
+from bluejay.ray_app.excepciones import ServidorNoDisponible
+from bluejay.ray_app.servidor_actor import levantar_servidores
 from bluejay.transporte_local import RedLocal
 
 DOMINIOS_DEMO = ("alpha.local", "beta.local", "gamma.local")
@@ -141,6 +149,91 @@ class BackendLocal:
         }
 
 
+class BackendRay:
+    """`ServidorActor` de Ray, uno por dominio (Etapa D). Mismas firmas que `BackendLocal`;
+    las rutas de la API no saben cuál de los dos tienen debajo (D2, un nivel más arriba)."""
+
+    def __init__(
+        self,
+        dominios: tuple[str, ...] = DOMINIOS_DEMO,
+        namespace: str = "bluejay",
+        config: ConfigRay | None = None,
+    ) -> None:
+        self._dominios = dominios
+        self._config = config or ConfigRay()
+        self._actores: dict[str, ActorHandle] = levantar_servidores(
+            dominios, self._config, namespace
+        )
+
+    def _exigir(self, dominio: str) -> ActorHandle:
+        try:
+            return self._actores[dominio]
+        except KeyError:
+            raise ServidorDesconocido(f"No existe el servidor {dominio!r}") from None
+
+    async def _esperar(self, objeto_ref: Any) -> Any:
+        try:
+            return await asyncio.wait_for(objeto_ref, timeout=self._config.timeout)
+        except RayActorError as error:
+            raise ServidorDesconocido(f"El servidor no responde: {error}") from error
+
+    async def dominios(self) -> list[str]:
+        return list(self._dominios)
+
+    async def llamar(self, dominio: str, metodo: str, *args: Any, **kwargs: Any) -> Any:
+        actor = self._exigir(dominio)
+        return await self._esperar(actor.llamar.remote(metodo, *args, **kwargs))
+
+    async def nombres(self, dominio: str, uris: list[str]) -> dict[str, str | None]:
+        actor = self._exigir(dominio)
+        nombres = await self._esperar(actor.llamar.remote("nombres", uris))
+        for uri, nombre in nombres.items():
+            origen = dominio_de(uri)
+            if nombre is not None or origen not in self._actores:
+                continue
+            # obtener_actor: caché de actores remotos (Etapa D, tarea 6).
+            try:
+                persona = await self._esperar(self._actores[origen].obtener_actor.remote(uri))
+            except (ServidorNoDisponible, ServidorDesconocido):
+                continue
+            if persona is None:
+                continue
+            try:
+                actor_remoto = await self._esperar(
+                    actor.guardar_actor_remoto.remote(persona, origen)
+                )
+            except ActividadInvalida:
+                continue
+            nombres[uri] = actor_remoto.nombre
+        return nombres
+
+    async def online(self, dominio: str) -> bool:
+        actor = self._exigir(dominio)
+        return await self._esperar(actor.online.remote())
+
+    async def set_online(self, dominio: str, online: bool) -> None:
+        actor = self._exigir(dominio)
+        await self._esperar(actor.set_online.remote(online))
+
+    async def transporte(self, dominio: str) -> dict[str, Any]:
+        actor = self._exigir(dominio)
+        return await self._esperar(actor.transporte.remote())
+
+
+async def _esperar_propagacion(
+    obtener: Callable[[], Awaitable[list[Any]]], minimo: int = 1
+) -> None:
+    """Con `BackendLocal` la entrega ya está resuelta cuando `llamar` vuelve (síncrono);
+    con `BackendRay` viaja por el `EntregadorActor` (D4, asíncrono), así que el guion de
+    la demo tiene que esperarla antes de depender de su efecto (p. ej., antes de
+    `aceptar` una solicitud o de publicar algo que otro dominio debe recibir)."""
+    for _ in range(100):
+        if len(await obtener()) >= minimo:
+            return
+        await asyncio.sleep(0.05)
+    raise TimeoutError("sembrar: una entrega no llegó a tiempo")
+
+
 async def sembrar(backend: Backend) -> None:
     """Datos de ejemplo: el comienzo del guion de la demo (plan_entrega_1.md, sección 5)."""
     a, b, g = DOMINIOS_DEMO
@@ -150,9 +243,12 @@ async def sembrar(backend: Backend) -> None:
     await backend.llamar(g, "registrar_usuario", "caro", "Caro")
 
     await backend.llamar(a, "seguir", "ana", "@beto@beta.local")
+    await _esperar_propagacion(lambda: backend.llamar(b, "solicitudes", "beto"))
     await backend.llamar(b, "aceptar", "beto", "https://alpha.local/users/ana")
+
     await backend.llamar(g, "seguir", "caro", "@ana@alpha.local")
     await backend.llamar(a, "seguir", "dani", "@ana@alpha.local")
+    await _esperar_propagacion(lambda: backend.llamar(a, "seguidores", "ana"), minimo=2)
 
     hola = await backend.llamar(b, "publicar", "beto", "Hola desde beta 👋")
     await backend.llamar(b, "publicar", "beto", "Esto solo lo ven mis seguidores", "followers")

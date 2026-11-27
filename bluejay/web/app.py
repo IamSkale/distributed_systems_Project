@@ -11,6 +11,7 @@ no hay inicio de sesión: el frontend elige servidor y usuario, y las lecturas r
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -127,8 +128,22 @@ async def json_actores(backend: Backend, dominio: str, uris: list[str]) -> list[
 # --- Aplicación -----------------------------------------------------------------------
 
 
+def _backend_por_entorno() -> Backend:
+    """`BLUEJAY_BACKEND=ray` levanta los servidores sobre actores de Ray (Etapa D);
+    si no está seteada, sigue con `BackendLocal` (Etapa C)."""
+    if os.environ.get("BLUEJAY_BACKEND") != "ray":
+        return BackendLocal()
+    import ray
+
+    from bluejay.web.backend import BackendRay
+
+    if not ray.is_initialized():
+        ray.init(namespace="bluejay")
+    return BackendRay()
+
+
 def crear_app(backend: Backend | None = None, semilla: bool = True) -> FastAPI:
-    backend = backend if backend is not None else BackendLocal()
+    backend = backend if backend is not None else _backend_por_entorno()
 
     @asynccontextmanager
     async def ciclo_de_vida(_: FastAPI):
