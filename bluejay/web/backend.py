@@ -2,12 +2,14 @@
 
 Las rutas no saben si debajo hay núcleos en el mismo proceso o actores de Ray: solo ven el
 protocolo `Backend`, cuyos métodos son asíncronos y llaman a los métodos de
-`ServidorBlueJay` por nombre. Así, cuando exista la capa de Ray (Etapa D), un `BackendRay`
-hará `await actor.<metodo>.remote(...)` con las mismas firmas y ni las rutas ni el frontend
-cambian. Es la misma separación de dominio y transporte de D2 (Conf. 2), un nivel más arriba.
+`ServidorBlueJay` por nombre. Hay dos implementaciones con las mismas firmas, y ni las
+rutas ni el frontend saben cuál tienen debajo: es la misma separación de dominio y
+transporte de D2 (Conf. 2), un nivel más arriba.
 
-`BackendLocal` usa `RedLocal`: entrega síncrona, sin *backoff*. Sirve para adelantar el
-frontend; la semántica de fallos completa (reintentos, colas acotadas) llega con Ray.
+- `BackendLocal` usa `RedLocal`: entrega síncrona, sin *backoff*, sin Ray.
+- `BackendRay` hace `await actor.<metodo>.remote(...)` sobre un `ServidorActor` por dominio
+  (Etapa D): entrega asíncrona con reintentos, colas acotadas y *dead letter* (D4, D6).
+  Se elige con `BLUEJAY_BACKEND=ray` (ver `bluejay/web/app.py`).
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+import ray
 from ray.actor import ActorHandle
 from ray.exceptions import RayActorError
 
@@ -219,6 +222,17 @@ class BackendRay:
         actor = self._exigir(dominio)
         return await self._esperar(actor.transporte.remote())
 
+    async def cerrar(self) -> None:
+        """Libera los `ServidorActor` y sus `EntregadorActor` (fuera del protocolo `Backend`:
+        solo lo usa quien creó el backend, p. ej., una prueba al terminar)."""
+        for actor in self._actores.values():
+            try:
+                await self._esperar(actor.destruir.remote())
+            except (ServidorDesconocido, TimeoutError):
+                pass
+            ray.kill(actor)
+        self._actores.clear()
+
 
 async def _esperar_propagacion(
     obtener: Callable[[], Awaitable[list[Any]]], minimo: int = 1
@@ -252,5 +266,8 @@ async def sembrar(backend: Backend) -> None:
 
     hola = await backend.llamar(b, "publicar", "beto", "Hola desde beta 👋")
     await backend.llamar(b, "publicar", "beto", "Esto solo lo ven mis seguidores", "followers")
+    # Ana solo puede republicar lo que alpha ya recibió. Las dos publicaciones de Beto
+    # viajan por la misma cola beta -> alpha (FIFO por destino, D6): con ver dos basta.
+    await _esperar_propagacion(lambda: backend.llamar(a, "linea_inicio", "ana"), minimo=2)
     await backend.llamar(a, "publicar", "ana", "Probando Blue Jay desde alpha")
     await backend.llamar(a, "republicar", "ana", hola.uri)

@@ -116,5 +116,13 @@ class EntregadorActor:
                     cola.popleft()
                 else:
                     await asyncio.sleep(self._config.backoff(pendiente.intentos))
+            except Exception as error:  # noqa: BLE001 - ver comentario
+                # Cualquier otro error del receptor (p. ej., un fallo inesperado al procesar)
+                # no se arregla reintentando: se trata como *poison pill* (D6, Conf. 4). Si no
+                # se capturara, la tarea de este destino moriría con la actividad todavía en
+                # la cabeza y la cola quedaría trabada para siempre.
+                motivo = f"error inesperado ({error.__class__.__name__})"
+                self._dead_letters.append(DeadLetter(destino, pendiente.actividad, motivo))
+                cola.popleft()
             else:
                 cola.popleft()

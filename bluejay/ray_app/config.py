@@ -18,9 +18,9 @@ class ConfigRay:
     limite_caracteres: int = LIMITE_CARACTERES
     intervalo_base: float = 1.0  # segundos antes del primer reintento
     factor_backoff: float = 2.0
-    maximo_intentos: int = 5
+    maximo_intentos: int = 6  # D6: 6 intentos, con esperas de 1, 2, 4, 8 y 16 s entre ellos
     tamano_cola: int = 1000
-    timeout: float = 5.0  # toda espera remota usa este timeout (asyncio.wait_for)
+    timeout: float = 2.0  # toda espera remota usa este timeout (asyncio.wait_for, D17)
 
     def backoff(self, intentos: int) -> float:
         """Segundos de espera antes del intento número `intentos` (1-based)."""

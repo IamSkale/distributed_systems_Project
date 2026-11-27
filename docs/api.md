@@ -1,6 +1,6 @@
 # API web (frontend)
 
-Contrato JSON entre el frontend (`templates/`, `static/`) y el sistema. Es estable: hoy responde sobre los núcleos en un solo proceso (`BackendLocal`) y, cuando esté la capa de Ray (Etapa D), lo hará sobre los actores **sin cambiar rutas ni formatos**.
+Contrato JSON entre el frontend (`templates/`, `static/`) y el sistema. Es estable: responde igual sobre los núcleos en un solo proceso (`BackendLocal`, por defecto) y sobre los actores de Ray (`BackendRay`, con `BLUEJAY_BACKEND=ray`), **sin cambiar rutas ni formatos**.
 
 ## Arranque
 
@@ -27,7 +27,7 @@ uv run python -m bluejay.web --reload   # reinicia al cambiar el código Python
 - **Sin inicio de sesión** en la Entrega 1. El frontend elige **servidor** (`dominio`) y **usuario** (`username`) y los pone en la ruta. Las lecturas reciben `?visto_por=<username>` para aplicar la visibilidad (`visibilidad.md`).
 - **Identificadores:** los usuarios se identifican con su *handle* `@usuario@servidor`, que también vale sin la `@` inicial o como URI (`https://alpha.local/users/ana`). Las publicaciones, con su URI (`https://beta.local/posts/<uuid>`); como contiene `/`, va siempre **en el cuerpo**, no en la ruta.
 - **Fechas:** texto ISO 8601 en UTC (`2026-11-23T21:51:05.894575Z`). El frontend las formatea ("Hace 2 h").
-- **Consistencia eventual:** una acción en un servidor llega a los demás después. Con `BackendLocal` es casi inmediata; con Ray habrá retardo real, así que **el frontend debe volver a pedir las líneas** (al enfocar la pestaña o cada pocos segundos) en vez de suponer que ya están al día.
+- **Consistencia eventual:** una acción en un servidor llega a los demás después. Con `BackendLocal` es casi inmediata; con Ray hay retardo real, así que **el frontend debe volver a pedir las líneas** (al enfocar la pestaña o cada pocos segundos) en vez de suponer que ya están al día.
 - **Errores:** `{"detail": "mensaje"}` con `404` (no existe o no se puede ver), `400` (operación no permitida: texto vacío o de más de 500 caracteres, republicar algo "solo seguidores", usuario repetido…) o `422` (cuerpo mal formado).
 
 ## Formatos

@@ -38,4 +38,9 @@ uv run ruff check   # lint
 uv run python -m bluejay.web    # http://127.0.0.1:8000 (frontend en /, documentación interactiva en /docs)
 ```
 
-Arranca con datos de ejemplo en `alpha.local`, `beta.local` y `gamma.local`. El contrato de las rutas está en [docs/api.md](docs/api.md).
+Arranca con datos de ejemplo en `alpha.local`, `beta.local` y `gamma.local`. Por defecto los tres servidores son núcleos en el mismo proceso (entrega síncrona). Para levantarlos como actores de Ray:
+
+```bash
+BLUEJAY_BACKEND=ray uv run python -m bluejay.web
+```
+ El contrato de las rutas está en [docs/api.md](docs/api.md).

@@ -13,6 +13,7 @@ from typing import Any
 import ray
 from ray.actor import ActorHandle
 
+from bluejay.dominio.actividades import ActividadInvalida
 from bluejay.dominio.modelos import Entrega, dominio_de
 from bluejay.dominio.servidor import Resultado, ServidorBlueJay
 from bluejay.ray_app.config import ConfigRay
@@ -59,7 +60,9 @@ class ServidorActor:
         self._config = config
         self._online = True
         self._tarea_dependencias: asyncio.Task[None] | None = None
+        self._hay_dependencias_nuevas = asyncio.Event()
         self._intentos_dependencia: dict[str, int] = {}
+        self._proximo_intento_dependencia: dict[str, float] = {}  # reloj de asyncio
 
     # --- Utilidades -------------------------------------------------------------------
 
@@ -74,6 +77,7 @@ class ServidorActor:
             )
 
     def _despertar_dependencias(self) -> None:
+        self._hay_dependencias_nuevas.set()
         if self._tarea_dependencias is None or self._tarea_dependencias.done():
             self._tarea_dependencias = asyncio.create_task(self._bucle_dependencias())
 
@@ -111,13 +115,37 @@ class ServidorActor:
     # --- Resolución de dependencias (D12) -----------------------------------------------
 
     async def _bucle_dependencias(self) -> None:
+        """Pide cada original pendiente a su origen; los que fallan esperan con *backoff*
+        (D12) sin frenar a los demás. Un `Announce` nuevo despierta el bucle antes de tiempo."""
+        bucle = asyncio.get_running_loop()
         while True:
             pendientes = self._nucleo.dependencias_pendientes()
+            self._olvidar_dependencias_resueltas(pendientes)
             if not pendientes:
                 return
+            self._hay_dependencias_nuevas.clear()
             for uri in pendientes:
-                await self._resolver_dependencia(uri)
-            await asyncio.sleep(self._config.intervalo_base)
+                if self._proximo_intento_dependencia.get(uri, 0.0) <= bucle.time():
+                    await self._resolver_dependencia(uri)
+            if not self._nucleo.dependencias_pendientes():
+                continue
+            proximos = [
+                self._proximo_intento_dependencia.get(uri, 0.0)
+                for uri in self._nucleo.dependencias_pendientes()
+            ]
+            espera = max(min(proximos) - bucle.time(), 0.0)
+            try:
+                await asyncio.wait_for(self._hay_dependencias_nuevas.wait(), timeout=espera)
+            except TimeoutError:
+                pass
+
+    def _olvidar_dependencias_resueltas(self, pendientes: list[str]) -> None:
+        """Limpia los contadores de dependencias que ya no están pendientes (por ejemplo,
+        porque llegó un `Undo` o un `Delete` mientras se esperaba el original)."""
+        vigentes = set(pendientes)
+        for registro in (self._intentos_dependencia, self._proximo_intento_dependencia):
+            for uri in [u for u in registro if u not in vigentes]:
+                del registro[uri]
 
     async def _resolver_dependencia(self, uri: str) -> None:
         origen = dominio_de(uri)
@@ -130,16 +158,23 @@ class ServidorActor:
         except ERRORES_TRANSPORTE:
             self._directorio.invalidar(origen)
             intentos = self._intentos_dependencia.get(uri, 0) + 1
-            self._intentos_dependencia[uri] = intentos
             if intentos >= self._config.maximo_intentos:
                 self._nucleo.descartar_dependencia(uri)
-                self._intentos_dependencia.pop(uri, None)
+            else:
+                self._intentos_dependencia[uri] = intentos
+                self._proximo_intento_dependencia[uri] = (
+                    asyncio.get_running_loop().time() + self._config.backoff(intentos)
+                )
             return
-        self._intentos_dependencia.pop(uri, None)
+        # Al volver del `await` el núcleo decide con su estado actual (D17): si mientras
+        # tanto llegó un `Undo` o un `Delete`, `recibir_objeto` descarta el original.
         if objeto is None:
             self._nucleo.descartar_dependencia(uri)
-        else:
+            return
+        try:
             self._nucleo.recibir_objeto(objeto, origen)
+        except ActividadInvalida:
+            self._nucleo.descartar_dependencia(uri)
 
     # --- Disponibilidad y observabilidad -------------------------------------------------
 
